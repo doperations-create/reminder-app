@@ -9,11 +9,18 @@ body {
     text-shadow: 0 0 20px cyan;
 }
 
+.logout-btn {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    color: red;
+}
+
 #calendar {
     margin: 20px;
-    padding: 10px;
     background: #111;
     border-radius: 15px;
+    padding: 10px;
     box-shadow: 0 0 20px magenta;
 }
 
@@ -48,4 +55,46 @@ button {
     background: cyan;
     padding: 10px;
     border: none;
+}
+.login-body {
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-box {
+    background: #111;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 0 30px cyan;
+    text-align: center;
+    width: 300px;
+}
+
+.login-box h2 {
+    color: cyan;
+    text-shadow: 0 0 20px cyan;
+}
+
+.login-box input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    background: black;
+    border: 1px solid cyan;
+    color: white;
+}
+
+.login-box button {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(45deg, cyan, magenta);
+    border: none;
+    font-weight: bold;
+}
+
+.login-box a {
+    color: magenta;
 }
