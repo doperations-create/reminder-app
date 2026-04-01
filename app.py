@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
-import os, uuid
+import os, uuid, requests
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -24,6 +24,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100))
     password = db.Column(db.String(200))
+    token = db.Column(db.String(500))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -40,13 +41,14 @@ class Reminder(db.Model):
     last_notified = db.Column(db.String(20))
     user_id = db.Column(db.Integer)
 
-# ROUTES
+# HOME
 @app.route('/')
 @login_required
 def home():
     reminders = Reminder.query.filter_by(user_id=current_user.id).all()
     return render_template('index.html', reminders=reminders)
 
+# REGISTER
 @app.route('/register', methods=['GET','POST'])
 def register():
     if request.method == 'POST':
@@ -57,6 +59,7 @@ def register():
         return redirect('/login')
     return render_template('register.html')
 
+# LOGIN
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
@@ -66,11 +69,14 @@ def login():
             return redirect('/')
     return render_template('login.html')
 
+# LOGOUT
 @app.route('/logout')
+@login_required
 def logout():
     logout_user()
     return redirect('/login')
 
+# ADD
 @app.route('/add', methods=['POST'])
 @login_required
 def add():
@@ -83,17 +89,14 @@ def add():
         file.save(path)
 
     title = request.form['title']
-    category = request.form['category']
-
-    # Custom event override
-    if category == "Custom":
+    if request.form['category'] == "Custom":
         title = request.form['custom_event']
 
     r = Reminder(
         title=title,
         date=request.form['date'],
         message=request.form['message'],
-        category=category,
+        category=request.form['category'],
         image=path,
         user_id=current_user.id
     )
@@ -102,13 +105,46 @@ def add():
     db.session.commit()
     return redirect('/')
 
+# DELETE
 @app.route('/delete/<int:id>')
 @login_required
 def delete(id):
-    r = Reminder.query.get(id)
+    r = Reminder.query.get_or_404(id)
+
+    if r.user_id != current_user.id:
+        return "Unauthorized", 403
+
     db.session.delete(r)
     db.session.commit()
     return redirect('/')
+
+# SAVE TOKEN
+@app.route('/save-token', methods=['POST'])
+@login_required
+def save_token():
+    token = request.json.get("token")
+    user = User.query.get(current_user.id)
+    user.token = token
+    db.session.commit()
+    return jsonify({"status": "saved"})
+
+# PUSH
+FCM_KEY = "YOUR_FIREBASE_SERVER_KEY"
+
+def send_push(token, msg):
+    url = "https://fcm.googleapis.com/fcm/send"
+    headers = {
+        "Authorization": "key=" + FCM_KEY,
+        "Content-Type": "application/json"
+    }
+    data = {
+        "to": token,
+        "notification": {
+            "title": "Reminder 🔔",
+            "body": msg
+        }
+    }
+    requests.post(url, json=data, headers=headers)
 
 # REMINDER ENGINE
 def check_reminders():
@@ -122,14 +158,11 @@ def check_reminders():
         diff = (event_date - today).days
 
         if diff in [3,2,1,0] and r.last_notified != today_str:
-            if diff == 0:
-                msg = f"🎉 Today: {r.title}"
-            elif diff == 1:
-                msg = f"⚡ Tomorrow: {r.title}"
-            else:
-                msg = f"📅 {diff} days left for {r.title}"
+            msg = f"{r.title} in {diff} days" if diff else f"Today: {r.title}"
 
-            print("🔔", msg)
+            user = User.query.get(r.user_id)
+            if user and user.token:
+                send_push(user.token, msg)
 
             r.last_notified = today_str
             db.session.commit()
