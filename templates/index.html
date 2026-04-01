@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+</head>
+
+<body>
+
+<h2 class="title">💫 Life Reminder</h2>
+
+<div id="calendar"></div>
+
+<!-- ADD POPUP -->
+<div id="popup" class="popup">
+<form action="/add" method="post" enctype="multipart/form-data">
+
+<input name="title" placeholder="Event name">
+
+<select name="category" id="category">
+<option>Birthday</option>
+<option>Anniversary</option>
+<option>Festival</option>
+<option>Personal</option>
+<option>Diwali</option>
+<option>Custom</option>
+</select>
+
+<input name="custom_event" id="customEvent" placeholder="Enter Custom Event" style="display:none">
+
+<input type="date" name="date" id="dateInput">
+
+<select id="messageSelect"></select>
+<textarea name="message" id="messageBox" placeholder="Custom message"></textarea>
+
+<input type="file" name="image" id="imageInput">
+<img id="previewImg" width="100%" style="display:none">
+
+<button type="submit">Submit</button>
+
+</form>
+</div>
+
+<!-- VIEW -->
+<div id="viewPopup" class="popup"></div>
+
+<script>
+
+// 50+ MESSAGES
+const messages = [
+"🎂 Birthday reminder!", "🎉 Celebrate today!", "💖 Anniversary love!",
+"🎁 Buy gift!", "🌟 Make happy!", "💌 Send wishes!", "🥳 Party time!",
+"🌹 Romantic day!", "🎊 Big celebration!", "💫 Special moment!",
+"🎈 Balloon day!", "💝 Show love!", "🎂 Cake time!", "🎉 Surprise!",
+"📸 Memories!", "💓 Smile!", "🎁 Gift time!", "💌 Message now!",
+"🌈 Happy vibes!", "🎊 Celebrate life!", "🎆 Festival!", "🪔 Diwali!",
+"🎨 Holi!", "🎄 Christmas!", "🌙 Eid!", "🎁 Surprise today!",
+"💖 Love day!", "🎉 Party alert!", "🌟 Shine today!", "🎊 Enjoy!",
+"🎂 Cake day!", "💌 Wish them!", "💝 Care today!", "🎁 Gift alert!",
+"🎆 Festival vibes!", "🌈 Joy day!", "🥳 Celebrate now!", "💫 Magic day!",
+"🎊 Big moment!", "💓 Love reminder!", "🎉 Special alert!",
+"🎁 Gift now!", "💌 Message time!", "🎂 Cake ready!",
+"🎊 Party now!", "💖 Romantic alert!", "🎆 Fireworks time!"
+];
+
+// dropdown fill
+let select = document.getElementById("messageSelect");
+messages.forEach(m=>{
+    let opt=document.createElement("option");
+    opt.text=m;
+    select.add(opt);
+});
+
+select.onchange = () => {
+    document.getElementById("messageBox").value = select.value;
+};
+
+// custom event toggle
+document.getElementById("category").onchange = function(){
+    document.getElementById("customEvent").style.display =
+        this.value == "Custom" ? "block" : "none";
+};
+
+// image preview
+document.getElementById("imageInput").onchange = function(e){
+    let img = document.getElementById("previewImg");
+    img.src = URL.createObjectURL(e.target.files[0]);
+    img.style.display = "block";
+};
+
+// CALENDAR
+document.addEventListener('DOMContentLoaded', function () {
+
+let calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+
+initialView: 'dayGridMonth',
+
+dateClick: function(info){
+    document.getElementById("popup").classList.add("show");
+    document.getElementById("dateInput").value=info.dateStr;
+},
+
+eventClick: function(info){
+
+    let e = info.event.extendedProps;
+
+    document.getElementById("viewPopup").classList.add("show");
+    document.getElementById("viewPopup").innerHTML = `
+        <h3>${info.event.title}</h3>
+        <p>${e.message}</p>
+        <img src="/${e.image}" width="100%">
+        <br>
+        <a href="/delete/${e.id}">🗑 Delete</a>
+    `;
+
+    if(e.category=="Birthday") confetti();
+    if(e.category=="Anniversary") confetti({particleCount:20});
+    if(e.category=="Diwali"){
+        let end = Date.now()+2000;
+        (function frame(){
+            confetti({particleCount:50,spread:120});
+            if(Date.now()<end) requestAnimationFrame(frame);
+        })();
+    }
+},
+
+events: [
+{% for r in reminders %}
+{
+title: "{{r.title}}",
+start: "{{r.date}}",
+id: "{{r.id}}",
+message: "{{r.message}}",
+image: "{{r.image}}",
+category: "{{r.category}}"
+},
+{% endfor %}
+]
+
+});
+
+calendar.render();
+});
+</script>
+
+</body>
+</html>
